@@ -11,15 +11,41 @@ const getDashboardData = async (query) => {
     const airportsPromise = fetchJson(`https://boolean-spec-frontend.vercel.app/freetestapi/airports?search=${query}`)
 
     const promises = [destinationsPromise, weathersPromise, airportsPromise];
-    const [destinations, weathers, airports] = await Promise.all(promises);
+    const [destinationsResult, weathersResult, airportsResult] = await Promise.allSettled(promises);
 
-    return {
-      city: destinations[0]?.name ?? null,
-      country: destinations[0]?.country ?? null,
-      temperature: weathers[0]?.temperature ?? null,
-      weather: weathers[0]?.weather_description ?? null,
-      airport: airports[0]?.name ?? null
+    const data = {};
+
+    if (destinationsResult.status === 'rejected') {
+      console.error('Errore in destinations:', destinationsResult.reason);
+      data.city = null;
+      data.country = null;
+    } else {
+      const destinations = destinationsResult.value[0];
+      data.city = destinations?.name ?? null;
+      data.country = destinations?.country ?? null
     }
+
+    if (weathersResult.status === 'rejected') {
+      console.error('Errore in weathers:', weathersResult.reason);
+      data.temperature = null;
+      data.weather = null;
+    } else {
+      const weathers = weathersResult.value[0];
+      data.temperature = weathers?.temperature ?? null;
+      data.weather = weathers?.weather_description ?? null;
+    }
+
+    if (airportsResult.status === 'rejected') {
+      console.error('Errore in airports:', airportsResult.reason);
+      data.airport = null;
+    } else {
+      const airports = airportsResult.value[0];
+      data.airport = airports?.name ?? null;
+    }
+
+
+    return data;
+
   } catch (error) {
     throw new Error(`Errore nel recupero dei dati: ${error.message}`);
   }
@@ -39,10 +65,6 @@ getDashboardData('london')
     if (data.airport !== null) {
       message += `The main airport is ${data.airport}.\n`
     }
-    console.log(
-      `${data.city} is in ${data.country}.\n` +
-      `Today there are ${data.temperature} degrees and the weather is ${data.weather}.\n` +
-      `The main airport is ${data.airport}.\n`
-    );
+    console.log(message);
   })
   .catch(error => console.error(error));
